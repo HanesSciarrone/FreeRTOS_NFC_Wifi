@@ -9,33 +9,83 @@
 #include "NFC.h"
 #include "spi.h"
 
-/* Variable to define task */
-static osThreadId CardNFC_Handle;
-static uint32_t BufferNFC[128];
-static osStaticThreadDef_t CardNFC_ControlBlock;
+/* [BEGIN] Private typedef ------------ */
+static typedef StaticTask_t osStaticThreadDef_t;
+static typedef StaticQueue_t osStaticMessageQDef_t;
+static typedef StaticSemaphore_t osStaticMutexDef_t;
+static typedef StaticSemaphore_t osStaticSemaphoreDef_t;
+/* [END] Private typedef -------------- */
 
-/* Variable to define Queue of task NFC */
-static osMessageQId QueueNFC_Handle;
-static uint8_t Queue_BufferNFC[ 10 * sizeof( uint8_t ) ];
-static osStaticMessageQDef_t NFC_QueueControlBlock;
+
+/* Definitions for TaskNFC */
+osThreadId_t TaskNFCHandle;
+uint32_t Buffer_TaskNFC[512];
+osStaticThreadDef_t TaskNFC_ControlBlock;
+const osThreadAttr_t TaskNFC_attributes = {
+  .name = "TaskNFC",
+  .stack_mem = &Buffer_TaskNFC[0],
+  .stack_size = sizeof(Buffer_TaskNFC),
+  .cb_mem = &TaskNFC_ControlBlock,
+  .cb_size = sizeof(TaskNFC_ControlBlock),
+  .priority = (osPriority_t) osPriorityNormal,
+};
+
+
+/* Definitions for uidNFC_Queue */
+osMessageQueueId_t uidNFC_QueueHandle;
+uint8_t uidNFC_Queue_Buffer[ 10 * sizeof( uint8_t ) ];
+osStaticMessageQDef_t uidNFC_Queue_ControlBlock;
+const osMessageQueueAttr_t uidNFC_Queue_attributes = {
+  .name = "uidNFC_Queue",
+  .cb_mem = &uidNFC_Queue_ControlBlock,
+  .cb_size = sizeof(uidNFC_Queue_ControlBlock),
+  .mq_mem = &uidNFC_Queue_Buffer,
+  .mq_size = sizeof(uidNFC_Queue_Buffer)
+};
+
 
 /* Variable that link SPI function to NFC drivers */
 static NFC_CommInterface commInterface_NFC;
 
-/* BEGIN: Prototype of private function */
-static uint8_t ModelNFC_Init(void);
-static uint8_t CommNFC_Init(void);
-static uint8_t TaskNFC_Init(void);
-static void Task_CardNFC(void const * argument);
-/* END: Prototype of private function */
-
+/* [BEGIN]: Prototype of private function */
 
 /**
- * \brief Function to initialize module NFC with PN532.
+ * \brief Function to initialize module NFC with PN532 and
+ * start to RFID operation.
  *
  * \return Return 1 if operation was success or 0 in other case
  */
-static uint8_t ModelNFC_Init(void)
+static uint8_t NFC_Module_Init(void);
+
+/**
+ * \brief Function to initialize peripheral functionality used in
+ * module NFC.
+ *
+ * \return Return 1 if operation was success or 0 in other case.
+ */
+static uint8_t NFC_CommInterface_Init(void);
+
+/**
+ *	\brief Function to initialize Queue neccesary to operate with this task
+ *
+ *	\return Return 1 is operation was success or 0 in other case.
+ */
+static uint8_t NFC_QueueInit(void);
+
+/**
+* \brief Function implementing the CardNFC thread.
+*
+* \param argument: Argument to pass a task.
+*
+* \return None
+*/
+static void CardNFC(void *argument);
+
+/* [END]: Prototype of private function */
+
+
+
+static uint8_t NFC_Module_Init(void)
 {
 	uint32_t success;
 	uint8_t model, version, subversion;
@@ -68,35 +118,22 @@ static uint8_t ModelNFC_Init(void)
 	}
 }
 
-
-/**
- * \brief Function to initialize peripheral functionality used in
- * module NFC.
- *
- * \return Return 1 if operation was success or 0 in other case.
- */
-static uint8_t CommNFC_Init(void)
+static uint8_t NFC_CommInterface_Init(void)
 {
-	commInterface_NFC.GetByte;
-	commInterface_NFC.GetIRQ;
-	commInterface_NFC.SendByte;
-	commInterface_NFC.SetSelect;
+	commInterface_NFC.GetByte = &NFC_SPI_GetByte;
+	commInterface_NFC.GetIRQ = &NFC_SPI_GetIRQ;
+	commInterface_NFC.SendByte = &NFC_SPI_SendByte;
+	commInterface_NFC.SetSelect &NFC_SPI_SetSelect;
 
 	return NFC_CommInit(&commInterface_NFC);
 }
 
-
-/**
- *	\brief Function to initialize Semaphore, Mutex and Queue neccesary to oparete with this task
- *
- *	\return Return 1 is operation was success or 0 in other case.
- */
-static uint8_t TaskNFC_Init(void)
+static uint8_t NFC_QueueInit(void)
 {
-	  osMessageQStaticDef(QueueNFC, 10, uint8_t, Queue_BufferNFC, &NFC_QueueControlBlock);
-	  QueueNFC_Handle = osMessageCreate(osMessageQ(QueueNFC), NULL);
+	  /* creation of uidNFC_Queue */
+	  uidNFC_QueueHandle = osMessageQueueNew (10, sizeof(uint8_t), &uidNFC_Queue_attributes);
 
-	  if (CardNFC_Handle == NULL)
+	  if (uidNFC_QueueHandle == NULL)
 	  {
 		  return 0;
 	  }
@@ -104,26 +141,18 @@ static uint8_t TaskNFC_Init(void)
 	  return 1;
 }
 
-
-/**
-* \brief Function implementing the CardNFC thread.
-*
-* \param argument: Argument to pass a task.
-*
-* \return None
-*/
-static void Task_CardNFC(void const * argument)
+static void CardNFC(void *argument)
 {
 	uint8_t uid[7] = {0, 0, 0, 0, 0, 0, 0}, length_uid;
 
-	if (CommNFC_Init() == 0)
+	if (NFC_CommInterface_Init() == 0)
 	{
-		osThreadTerminate(CardNFC_Handle);
+		osThreadTerminate(TaskNFCHandle);
 	}
 
 	if (ModelNFC_Init() == 0)
 	{
-		osThreadTerminate(CardNFC_Handle);
+		osThreadTerminate(TaskNFCHandle);
 	}
 
 	/* Infinite loop */
@@ -131,30 +160,29 @@ static void Task_CardNFC(void const * argument)
 	{
 		if (NFC_ReadPassiveTargetID(PN532_MIFARE_ISO14443A, uid, length_uid, 1000))
 		{
-			osDelay(1000);
+			osDelay(1000/portTICK_PERIOD_MS);
 		}
 
-		osDelay(1);
+		osDelay(1/portTICK_PERIOD_MS);
 	}
 
 	// If task exit of while so destroy task. This is for caution
-	osThreadTerminate(CardNFC_Handle);
+	osThreadTerminate(TaskNFCHandle);
 }
 
-int8_t TaskNCF_Create(void)
+int8_t TaskNCF_Started(void)
 {
 	int8_t returnValue;
 
-	/* Definition and creation of Queue, Mutex or Semaphore */
-	if (TaskNFC_Init() == 0)
+	/* Definition and creation of Queue */
+	if (NFC_QueueInit() == 0)
 	{
 		return -1;
 	}
 
-	osThreadStaticDef(CardNFC, Task_CardNFC, osPriorityNormal, 0, 128, BufferNFC, &CardNFC_ControlBlock);
-	CardNFC_Handle = osThreadCreate(osThread(CardNFC), NULL);
+	TaskNFCHandle = osThreadNew(CardNFC, NULL, &TaskNFC_attributes);
 
-	if (CardNFC_Handle == NULL)
+	if (TaskNFCHandle == NULL)
 	{
 		return -1;
 	}

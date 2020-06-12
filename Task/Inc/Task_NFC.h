@@ -14,6 +14,6 @@
  *
  * \return Return 1 is operation was success or -1 in other case
  */
-int8_t TaskNCF_Create(void);
+int8_t TaskNCF_Started(void);
 
 #endif /* INC_TASK_NFC_H_ */

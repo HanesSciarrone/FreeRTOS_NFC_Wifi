@@ -30,6 +30,10 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticTask_t osStaticThreadDef_t;
+typedef StaticQueue_t osStaticMessageQDef_t;
+typedef StaticSemaphore_t osStaticMutexDef_t;
+typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -48,53 +52,78 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-osThreadId defaultTaskHandle;
-uint32_t defaultTaskBuffer[ 128 ];
-osStaticThreadDef_t defaultTaskControlBlock;
-osThreadId CardNFCHandle;
-uint32_t BufferNFC[ 128 ];
-osStaticThreadDef_t CardNFCControlBlock;
-osThreadId LayerWifiHandle;
-uint32_t BufferWifi[ 512 ];
-osStaticThreadDef_t LayerWifiControlBlock;
-osMessageQId QueueNFCHandle;
-uint8_t Queue_BufferNFC[ 10 * sizeof( uint8_t ) ];
-osStaticMessageQDef_t NFC_QueueControlBlock;
-osMutexId Mutex_Wifi_NewMsgHandle;
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 64 * 4
+};
+/* Definitions for TaskNFC */
+osThreadId_t TaskNFCHandle;
+uint32_t Buffer_TaskNFC[ 512 ];
+osStaticThreadDef_t TaskNFC_ControlBlock;
+const osThreadAttr_t TaskNFC_attributes = {
+  .name = "TaskNFC",
+  .stack_mem = &Buffer_TaskNFC[0],
+  .stack_size = sizeof(Buffer_TaskNFC),
+  .cb_mem = &TaskNFC_ControlBlock,
+  .cb_size = sizeof(TaskNFC_ControlBlock),
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for uidNFC_Queue */
+osMessageQueueId_t uidNFC_QueueHandle;
+uint8_t uidNFC_Queue_Buffer[ 10 * sizeof( uint8_t ) ];
+osStaticMessageQDef_t uidNFC_Queue_ControlBlock;
+const osMessageQueueAttr_t uidNFC_Queue_attributes = {
+  .name = "uidNFC_Queue",
+  .cb_mem = &uidNFC_Queue_ControlBlock,
+  .cb_size = sizeof(uidNFC_Queue_ControlBlock),
+  .mq_mem = &uidNFC_Queue_Buffer,
+  .mq_size = sizeof(uidNFC_Queue_Buffer)
+};
+/* Definitions for wifi_Mutex_NewMsg */
+osMutexId_t wifi_Mutex_NewMsgHandle;
 osStaticMutexDef_t Wifi_NewMsg_ControlBlock;
-osMutexId Wifi_Mutex_ReceiveDataHandle;
-osStaticMutexDef_t Wifi_ReceiveData_ControlBlock;
-osSemaphoreId Wifi_Semaphore_OperateHandle;
-osStaticSemaphoreDef_t Wifi_Operation_ControlBlock;
-osSemaphoreId Wifi_Sem_ReceptionDataHandle;
-osStaticSemaphoreDef_t myCountingSem01ControlBlock;
+const osMutexAttr_t wifi_Mutex_NewMsg_attributes = {
+  .name = "wifi_Mutex_NewMsg",
+  .cb_mem = &Wifi_NewMsg_ControlBlock,
+  .cb_size = sizeof(Wifi_NewMsg_ControlBlock),
+};
+/* Definitions for wifi_Mutex_ReceptionData */
+osMutexId_t wifi_Mutex_ReceptionDataHandle;
+osStaticMutexDef_t wifi_ReceptionData_ControlBlock;
+const osMutexAttr_t wifi_Mutex_ReceptionData_attributes = {
+  .name = "wifi_Mutex_ReceptionData",
+  .cb_mem = &wifi_ReceptionData_ControlBlock,
+  .cb_size = sizeof(wifi_ReceptionData_ControlBlock),
+};
+/* Definitions for wifi_Sem_Operation */
+osSemaphoreId_t wifi_Sem_OperationHandle;
+osStaticSemaphoreDef_t Wifi_Operative_ControlBlock;
+const osSemaphoreAttr_t wifi_Sem_Operation_attributes = {
+  .name = "wifi_Sem_Operation",
+  .cb_mem = &Wifi_Operative_ControlBlock,
+  .cb_size = sizeof(Wifi_Operative_ControlBlock),
+};
+/* Definitions for wifi_Sem_ReceptionData */
+osSemaphoreId_t wifi_Sem_ReceptionDataHandle;
+osStaticSemaphoreDef_t Wifi_ReceptionData_ControlBlock;
+const osSemaphoreAttr_t wifi_Sem_ReceptionData_attributes = {
+  .name = "wifi_Sem_ReceptionData",
+  .cb_mem = &Wifi_ReceptionData_ControlBlock,
+  .cb_size = sizeof(Wifi_ReceptionData_ControlBlock),
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
    
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const * argument);
-void Task_CardNFC(void const * argument);
-void Task_Wifi(void const * argument);
+void StartDefaultTask(void *argument);
+void CardNFC(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
-
-/* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
-
-/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
-static StaticTask_t xIdleTaskTCBBuffer;
-static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
-  
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
-{
-  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
-  *ppxIdleTaskStackBuffer = &xIdleStack[0];
-  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-  /* place for user code */
-}                   
-/* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
   * @brief  FreeRTOS initialization
@@ -106,26 +135,22 @@ void MX_FREERTOS_Init(void) {
        
   /* USER CODE END Init */
   /* Create the mutex(es) */
-  /* definition and creation of Mutex_Wifi_NewMsg */
-  osMutexStaticDef(Mutex_Wifi_NewMsg, &Wifi_NewMsg_ControlBlock);
-  Mutex_Wifi_NewMsgHandle = osMutexCreate(osMutex(Mutex_Wifi_NewMsg));
+  /* creation of wifi_Mutex_NewMsg */
+  wifi_Mutex_NewMsgHandle = osMutexNew(&wifi_Mutex_NewMsg_attributes);
 
-  /* definition and creation of Wifi_Mutex_ReceiveData */
-  osMutexStaticDef(Wifi_Mutex_ReceiveData, &Wifi_ReceiveData_ControlBlock);
-  Wifi_Mutex_ReceiveDataHandle = osMutexCreate(osMutex(Wifi_Mutex_ReceiveData));
+  /* creation of wifi_Mutex_ReceptionData */
+  wifi_Mutex_ReceptionDataHandle = osMutexNew(&wifi_Mutex_ReceptionData_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
-  /* definition and creation of Wifi_Semaphore_Operate */
-  osSemaphoreStaticDef(Wifi_Semaphore_Operate, &Wifi_Operation_ControlBlock);
-  Wifi_Semaphore_OperateHandle = osSemaphoreCreate(osSemaphore(Wifi_Semaphore_Operate), 1);
+  /* creation of wifi_Sem_Operation */
+  wifi_Sem_OperationHandle = osSemaphoreNew(1, 1, &wifi_Sem_Operation_attributes);
 
-  /* definition and creation of Wifi_Sem_ReceptionData */
-  osSemaphoreStaticDef(Wifi_Sem_ReceptionData, &myCountingSem01ControlBlock);
-  Wifi_Sem_ReceptionDataHandle = osSemaphoreCreate(osSemaphore(Wifi_Sem_ReceptionData), 2048);
+  /* creation of wifi_Sem_ReceptionData */
+  wifi_Sem_ReceptionDataHandle = osSemaphoreNew(2048, 2048, &wifi_Sem_ReceptionData_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -136,26 +161,19 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* definition and creation of QueueNFC */
-  osMessageQStaticDef(QueueNFC, 10, uint8_t, Queue_BufferNFC, &NFC_QueueControlBlock);
-  QueueNFCHandle = osMessageCreate(osMessageQ(QueueNFC), NULL);
+  /* creation of uidNFC_Queue */
+  uidNFC_QueueHandle = osMessageQueueNew (10, sizeof(uint8_t), &uidNFC_Queue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  osThreadStaticDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128, defaultTaskBuffer, &defaultTaskControlBlock);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* definition and creation of CardNFC */
-  osThreadStaticDef(CardNFC, Task_CardNFC, osPriorityNormal, 0, 128, BufferNFC, &CardNFCControlBlock);
-  CardNFCHandle = osThreadCreate(osThread(CardNFC), NULL);
-
-  /* definition and creation of LayerWifi */
-  osThreadStaticDef(LayerWifi, Task_Wifi, osPriorityHigh, 0, 512, BufferWifi, &LayerWifiControlBlock);
-  LayerWifiHandle = osThreadCreate(osThread(LayerWifi), NULL);
+  /* creation of TaskNFC */
+  TaskNFCHandle = osThreadNew(CardNFC, NULL, &TaskNFC_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -170,7 +188,7 @@ void MX_FREERTOS_Init(void) {
   * @retval None
   */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const * argument)
+void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
@@ -181,40 +199,22 @@ void StartDefaultTask(void const * argument)
   /* USER CODE END StartDefaultTask */
 }
 
-/* USER CODE BEGIN Header_Task_CardNFC */
+/* USER CODE BEGIN Header_CardNFC */
 /**
-* @brief Function implementing the CardNFC thread.
+* @brief Function implementing the TaskNFC thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_Task_CardNFC */
-void Task_CardNFC(void const * argument)
+/* USER CODE END Header_CardNFC */
+void CardNFC(void *argument)
 {
-  /* USER CODE BEGIN Task_CardNFC */
+  /* USER CODE BEGIN CardNFC */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END Task_CardNFC */
-}
-
-/* USER CODE BEGIN Header_Task_Wifi */
-/**
-* @brief Function implementing the LayerWifi thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_Task_Wifi */
-void Task_Wifi(void const * argument)
-{
-  /* USER CODE BEGIN Task_Wifi */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END Task_Wifi */
+  /* USER CODE END CardNFC */
 }
 
 /* Private application code --------------------------------------------------*/

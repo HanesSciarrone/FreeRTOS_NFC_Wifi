@@ -60,12 +60,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define Wifi_Tx_Pin GPIO_PIN_12
 #define Wifi_Tx_GPIO_Port GPIOC
-#define NFC_CS_Pin GPIO_PIN_11
-#define NFC_CS_GPIO_Port GPIOA
 #define Wifi_Rx_Pin GPIO_PIN_2
 #define Wifi_Rx_GPIO_Port GPIOD
-#define NCF_IRQ_Pin GPIO_PIN_6
-#define NCF_IRQ_GPIO_Port GPIOH
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

@@ -10,7 +10,7 @@
 
 #include "stm32f7xx_hal.h"
 
-/** \brief Comment #define if you don't work with RTOS */
+/** \brief Comment this #define if you don't work with RTOS */
 #define NFC_RTOS
 
 
