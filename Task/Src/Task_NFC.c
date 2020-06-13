@@ -4,16 +4,18 @@
  *  Created on: Jun 9, 2020
  *      Author: hanes
  */
+#include "string.h"
+
 #include "Task_NFC.h"
 #include "cmsis_os.h"
+#include "NFC_SPI.h"
 #include "NFC.h"
-#include "spi.h"
 
 /* [BEGIN] Private typedef ------------ */
-static typedef StaticTask_t osStaticThreadDef_t;
-static typedef StaticQueue_t osStaticMessageQDef_t;
-static typedef StaticSemaphore_t osStaticMutexDef_t;
-static typedef StaticSemaphore_t osStaticSemaphoreDef_t;
+typedef StaticTask_t osStaticThreadDef_t;
+typedef StaticQueue_t osStaticMessageQDef_t;
+typedef StaticSemaphore_t osStaticMutexDef_t;
+typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* [END] Private typedef -------------- */
 
 
@@ -88,7 +90,7 @@ static void CardNFC(void *argument);
 static uint8_t NFC_Module_Init(void)
 {
 	uint32_t success;
-	uint8_t model, version, subversion;
+//	uint8_t model, version, subversion;
 
 	success = NFC_GetFirmwareVersion();
 
@@ -97,9 +99,9 @@ static uint8_t NFC_Module_Init(void)
 		return 0;
 	}
 
-	model = (success & 0x00FF0000)>>16;
-	version = (success & 0x0000FF00) >> 8;
-	subversion = (success & 0x000000FF);
+//	model = (success & 0x00FF0000)>>16;
+//	version = (success & 0x0000FF00) >> 8;
+//	subversion = (success & 0x000000FF);
 
 	// Set the max number of retry attempts to read from a card
 	// This prevents us from waiting forever for a card, which is
@@ -116,6 +118,8 @@ static uint8_t NFC_Module_Init(void)
 	{
 		return 0;
 	}
+
+	return 1;
 }
 
 static uint8_t NFC_CommInterface_Init(void)
@@ -123,7 +127,7 @@ static uint8_t NFC_CommInterface_Init(void)
 	commInterface_NFC.GetByte = &NFC_SPI_GetByte;
 	commInterface_NFC.GetIRQ = &NFC_SPI_GetIRQ;
 	commInterface_NFC.SendByte = &NFC_SPI_SendByte;
-	commInterface_NFC.SetSelect &NFC_SPI_SetSelect;
+	commInterface_NFC.SetSelect = &NFC_SPI_SetSelect;
 
 	return NFC_CommInit(&commInterface_NFC);
 }
@@ -150,7 +154,7 @@ static void CardNFC(void *argument)
 		osThreadTerminate(TaskNFCHandle);
 	}
 
-	if (ModelNFC_Init() == 0)
+	if (NFC_Module_Init() == 0)
 	{
 		osThreadTerminate(TaskNFCHandle);
 	}
@@ -158,8 +162,9 @@ static void CardNFC(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		if (NFC_ReadPassiveTargetID(PN532_MIFARE_ISO14443A, uid, length_uid, 1000))
+		if (NFC_ReadPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &length_uid, 1000))
 		{
+			strncpy((char *)uid, "\0", 7);
 			osDelay(1000/portTICK_PERIOD_MS);
 		}
 
@@ -172,8 +177,6 @@ static void CardNFC(void *argument)
 
 int8_t TaskNCF_Started(void)
 {
-	int8_t returnValue;
-
 	/* Definition and creation of Queue */
 	if (NFC_QueueInit() == 0)
 	{

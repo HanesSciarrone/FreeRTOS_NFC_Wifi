@@ -21,13 +21,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "spi.h"
-#include "usart.h"
-#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Task_NFC.h"
+#include "NFC_SPI.h"
+#include "Wifi_UART.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -69,7 +68,7 @@ void MX_FREERTOS_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	int8_t status;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -89,16 +88,21 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_UART5_Init();
-  MX_SPI2_Init();
+
   /* USER CODE BEGIN 2 */
+  Wifi_UART_Init();		// Initialization WIFI peripheral of Cortex-M7
   NFC_SPI_Init();		// Initialization NFC peripheral of Cortex-M7
   /* USER CODE END 2 */
 
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init(); 
+  MX_FREERTOS_Init(); 	 /* Init task idle */
+  status = TaskNCF_Started();	 /* Init task of NFC */
+
+  if ( status == -1 )
+  {
+	  return 1;// Code to error at create task, semaphore, queue or mutex
+  }
   /* Start scheduler */
   osKernelStart();
  

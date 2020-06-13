@@ -62,5 +62,7 @@ dkms.conf
 .cproject
 .mxproject
 .project
-
+*.launch
 .settings/
+Debug/
+

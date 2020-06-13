@@ -8,6 +8,7 @@
 #ifndef INC_TASK_NFC_H_
 #define INC_TASK_NFC_H_
 
+#include "stm32f7xx_hal.h"
 
 /**
  * \brief Function to create task of NFC.

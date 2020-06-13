@@ -8,6 +8,8 @@
 #ifndef INC_WIFI_UART_H_
 #define INC_WIFI_UART_H_
 
+#include "stm32f7xx_hal.h"
+
 /// Comment this #define if you don't work with RTOS
 #define WIFI_UART_RTOS
 

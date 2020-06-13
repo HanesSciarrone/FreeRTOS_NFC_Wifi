@@ -9,7 +9,7 @@
 #ifdef WIFI_UART_RTOS
 #include "cmsis_os.h"
 
-static typedef StaticSemaphore_t osStaticSemaphoreDef_t;
+typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 
 /* Definitions for wifi_Sem_ReceptionData */
 osSemaphoreId_t wifi_Sem_ReceptionDataHandle;
@@ -36,7 +36,7 @@ typedef struct
 }RxBuffer_t;
 
 static RxBuffer_t bufferWifi;
-static UART_HandleTypeDef uartWifi;
+UART_HandleTypeDef uartWifi;
 
 uint8_t Wifi_UART_Init(void)
 {
