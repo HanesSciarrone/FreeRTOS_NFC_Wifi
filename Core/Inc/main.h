@@ -58,10 +58,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define Wifi_Tx_Pin GPIO_PIN_12
-#define Wifi_Tx_GPIO_Port GPIOC
-#define Wifi_Rx_Pin GPIO_PIN_2
-#define Wifi_Rx_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

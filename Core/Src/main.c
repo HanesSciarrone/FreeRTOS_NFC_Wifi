@@ -91,6 +91,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_UART5_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   NFC_SPI_Init();		// Initialization NFC peripheral of Cortex-M7
   /* USER CODE END 2 */
