@@ -27,7 +27,7 @@
  *
  * \return Return 1 if initialization was success or 0 in other way.
  */
-uint8_t Wifi_UART_Init(void);
+uint8_t WIFI_UART_Init(void);
 
 
 /**
@@ -51,6 +51,6 @@ int8_t Wifi_UART_Send(uint8_t* data, uint32_t length);
   * @param[in]  length the Maximum size of the data to receive.
   * \return The actual data size that has been received.
   */
-int32_t Wifi_UART_Receive(uint8_t* buffer, uint32_t length);
+uint32_t Wifi_UART_Receive(uint8_t* buffer, uint32_t length);
 
 #endif /* INC_WIFI_UART_H_ */

@@ -13,9 +13,6 @@
 
 /* [BEGIN] Private typedef ------------ */
 typedef StaticTask_t osStaticThreadDef_t;
-typedef StaticQueue_t osStaticMessageQDef_t;
-typedef StaticSemaphore_t osStaticMutexDef_t;
-typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* [END] Private typedef -------------- */
 
 
@@ -32,18 +29,6 @@ const osThreadAttr_t TaskNFC_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 
-
-/* Definitions for uidNFC_Queue */
-osMessageQueueId_t uidNFC_QueueHandle;
-uint8_t uidNFC_Queue_Buffer[ 10 * sizeof( uint8_t ) ];
-osStaticMessageQDef_t uidNFC_Queue_ControlBlock;
-const osMessageQueueAttr_t uidNFC_Queue_attributes = {
-  .name = "uidNFC_Queue",
-  .cb_mem = &uidNFC_Queue_ControlBlock,
-  .cb_size = sizeof(uidNFC_Queue_ControlBlock),
-  .mq_mem = &uidNFC_Queue_Buffer,
-  .mq_size = sizeof(uidNFC_Queue_Buffer)
-};
 
 
 /* Variable that link SPI function to NFC drivers */
@@ -66,13 +51,6 @@ static uint8_t NFC_Module_Init(void);
  * \return Return 1 if operation was success or 0 in other case.
  */
 static uint8_t NFC_CommInterface_Init(void);
-
-/**
- *	\brief Function to initialize Queue neccesary to operate with this task
- *
- *	\return Return 1 is operation was success or 0 in other case.
- */
-static uint8_t NFC_QueueInit(void);
 
 /**
 * \brief Function implementing the CardNFC thread.
@@ -132,19 +110,6 @@ static uint8_t NFC_CommInterface_Init(void)
 	return NFC_CommInit(&commInterface_NFC);
 }
 
-static uint8_t NFC_QueueInit(void)
-{
-	  /* creation of uidNFC_Queue */
-	  uidNFC_QueueHandle = osMessageQueueNew (10, sizeof(uint8_t), &uidNFC_Queue_attributes);
-
-	  if (uidNFC_QueueHandle == NULL)
-	  {
-		  return 0;
-	  }
-
-	  return 1;
-}
-
 static void CardNFC(void *argument)
 {
 	uint8_t uid[7] = {0, 0, 0, 0, 0, 0, 0}, length_uid;
@@ -175,14 +140,8 @@ static void CardNFC(void *argument)
 	osThreadTerminate(TaskNFCHandle);
 }
 
-int8_t TaskNCF_Started(void)
+int8_t TaskNFC_Started(void)
 {
-	/* Definition and creation of Queue */
-	if (NFC_QueueInit() == 0)
-	{
-		return -1;
-	}
-
 	TaskNFCHandle = osThreadNew(CardNFC, NULL, &TaskNFC_attributes);
 
 	if (TaskNFCHandle == NULL)
