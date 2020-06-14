@@ -323,18 +323,13 @@ static ESP8266_StatusTypeDef_t ESP8266_SendCommand(uint8_t *command, uint16_t le
 			offset = 0;
 		}
 
-
-//		if (strstr((char *)bufferRx, AT_RES_BUSYP_STR) != NULL  || strstr((char *)bufferRx, AT_RES_BUSYS_STR) != NULL)
-//		{
-//			return ESP8266_ERROR;
-//		}
-		else if ( strstr((char *)bufferRx, AT_ERROR) != NULL )
+		if ( strstr((char *)bufferRx, AT_ERROR) != NULL )
 		{
 			return ESP8266_ERROR;
 		}
 		else if( strstr((char *)bufferRx, (const char *)pattern) != NULL ||
-				strstr((char *)bufferRx, "WIFI CONNECTED\r\n") != NULL ||
-				strstr((char *)bufferRx, "GOT IP\r\n") != NULL)
+				strstr((char *)bufferRx, "WIFI CONNECTED\r\n") != NULL /*||
+				strstr((char *)bufferRx, "GOT IP\r\n") != NULL*/)
 		{
 			return ESP8266_OK;
 		}
@@ -361,6 +356,8 @@ ESP8266_StatusTypeDef_t ESP8266_Init(void)
 	uint8_t command[MAX_BUFFER_SIZE];
 	ESP8266_StatusTypeDef_t state;
 
+	// Time wait of restart ESP8266
+	ESP8266_Delay(ESP_TIME_MS_RESTART);
 
 	// Configure module for avoid echo
 	length = ESP8266_SetEcho(command, MAX_BUFFER_SIZE, 0);
@@ -370,6 +367,7 @@ ESP8266_StatusTypeDef_t ESP8266_Init(void)
 	{
 		return ESP8266_ERROR;
 	}
+	ESP8266_Delay(ESP_TIME_MS_COMMAND);
 
 	// Configure module as Station Mode
 	length = ESP8266_SetModeWIFI(command, MAX_BUFFER_SIZE, 1);
@@ -379,6 +377,7 @@ ESP8266_StatusTypeDef_t ESP8266_Init(void)
 	{
 		return ESP8266_ERROR;
 	}
+	ESP8266_Delay(ESP_TIME_MS_COMMAND);
 
 	// Configure module for single connection
 	length = ESP8266_SetMultipleConnection(command, MAX_BUFFER_SIZE, 0);
@@ -389,6 +388,7 @@ ESP8266_StatusTypeDef_t ESP8266_Init(void)
 	{
 		return ESP8266_ERROR;
 	}
+	ESP8266_Delay(ESP_TIME_MS_COMMAND);
 
 	return ESP8266_OK;
 }
@@ -424,6 +424,7 @@ ESP8266_StatusTypeDef_t ESP8266_DisconnectAllNetwork(void)
 		return ESP8266_ERROR;
 	}
 
+	ESP8266_Delay(ESP_TIME_MS_COMMAND);
 	return ESP8266_OK;
 }
 

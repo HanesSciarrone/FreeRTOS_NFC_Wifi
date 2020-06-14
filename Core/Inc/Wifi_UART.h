@@ -14,7 +14,7 @@
 #define WIFI_UART_RTOS
 
 /// Define time wait
-#define DEFAULT_TIME_OUT	1500
+#define DEFAULT_TIME_OUT	3000
 
 #define Wifi_Tx_Pin GPIO_PIN_12
 #define Wifi_Tx_GPIO_Port GPIOC

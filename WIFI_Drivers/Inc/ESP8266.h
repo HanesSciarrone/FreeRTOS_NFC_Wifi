@@ -13,6 +13,9 @@
 /** \brief Comment this #define if you don't work with RTOS */
 #define WIFI_RTOS
 
+#define	ESP_TIME_MS_RESTART		2000
+#define ESP_TIME_MS_COMMAND		500
+
 typedef enum {
 	  ESP8266_OK                            = 0,
 	  ESP8266_ERROR                         = 1,
@@ -84,5 +87,6 @@ ESP8266_StatusTypeDef_t ESP8266_ConnectionNetwork(const ESP8266_NetworkParameter
 ESP8266_StatusTypeDef_t ESP8266_EstablichConnection(const ESP8266_ServerParameters_s *parameters);
 ESP8266_StatusTypeDef_t ESP8266_MsgRequest(uint8_t *buffer, uint32_t length);
 ESP8266_StatusTypeDef_t ESP8266_MsgReceiveData(uint8_t *buffer, uint32_t *length);
+ESP8266_StatusTypeDef_t ESP8266_Close(void);
 ESP8266_StatusTypeDef_t GenerateRequest(void *data);
 #endif /* INC_ESP8266_H_ */

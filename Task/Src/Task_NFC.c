@@ -114,16 +114,6 @@ static void CardNFC(void *argument)
 {
 	uint8_t uid[7] = {0, 0, 0, 0, 0, 0, 0}, length_uid;
 
-	if (NFC_CommInterface_Init() == 0)
-	{
-		osThreadTerminate(TaskNFCHandle);
-	}
-
-	if (NFC_Module_Init() == 0)
-	{
-		osThreadTerminate(TaskNFCHandle);
-	}
-
 	/* Infinite loop */
 	for(;;)
 	{
@@ -142,6 +132,16 @@ static void CardNFC(void *argument)
 
 int8_t TaskNFC_Started(void)
 {
+	if (NFC_CommInterface_Init() == 0)
+	{
+		return -1;
+	}
+
+	if (NFC_Module_Init() == 0)
+	{
+		return -1;
+	}
+
 	TaskNFCHandle = osThreadNew(CardNFC, NULL, &TaskNFC_attributes);
 
 	if (TaskNFCHandle == NULL)

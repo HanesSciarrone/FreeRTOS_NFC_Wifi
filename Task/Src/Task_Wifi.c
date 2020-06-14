@@ -12,7 +12,7 @@
 
 #define SSID		"Hanes y Euge"
 #define PASSWORD	"Murcielago35"
-#define BROKER_MQTT	"mqtt.eclipse.org"
+#define HOST	"mqtt.eclipse.org"
 
 typedef StaticTask_t osStaticThreadDef_t;
 typedef StaticQueue_t osStaticMessageQDef_t;
@@ -62,9 +62,12 @@ const osSemaphoreAttr_t wifi_Sem_Operation_attributes = {
   .cb_size = sizeof(wifi_Operative_ControlBlock),
 };
 
-/* Variable that link UART function to WIFI drivers */
+/* Private variable */
 static Wifi_CommInterface_s commInterface_wifi;
 static ESP8266_NetworkParameters_s network;
+static ESP8266_ServerParameters_s service;
+static uint8_t host[30], protocol[10];
+static uint16_t port;
 
 
 
@@ -137,7 +140,7 @@ static uint8_t Wifi_SignalSync_Init(void)
 static void ModuleWifi(void *argument)
 {
 	ESP8266_StatusTypeDef_t status;
-	uint8_t dataSend[10], retry = 0;
+	uint8_t dataSend[10], retry = 0, state = 0;
 	uint8_t ssid[20], password[20];
 
 	strncpy((char *)dataSend, "\0", 10);
@@ -156,32 +159,101 @@ static void ModuleWifi(void *argument)
 		return;
 	}
 
-	status = ESP8266_DisconnectAllNetwork();
-
 	// Initialize parameters of module ESP8266
-	do
+	if (ESP8266_Init() != ESP8266_OK)
 	{
-		status = ESP8266_Init();
-		retry++;
-	} while(status != ESP8266_OK && retry < 3);
-
-	if (status != ESP8266_OK)
-	{
+		// Aviso de que no se pudo inicializar
 		osThreadTerminate(TaskWIFIHandle);
 		return;
 	}
 
-	// Connection ESP8266 at Wifi
-	retry = 0;
-	do
-	{
-		status = ESP8266_ConnectionNetwork(&network);
-		retry++;
-	} while(status != ESP8266_OK && retry < 3);
+	// Disconnection of network
+	status = ESP8266_DisconnectAllNetwork();
 
 	for(;;)
 	{
-		osDelay(1);
+		state = 0;	// State of machine state
+		retry = 0;	// Quantity intent of connection
+		while(state != 5)
+		{
+			switch(state)
+			{
+
+				// Connection Wifi ESP8266
+				case 0:
+				{
+					status = ESP8266_ConnectionNetwork(&network);
+
+					if (status != ESP8266_OK && retry >= 3)
+					{
+						state = 5;
+					}
+					else if (status != ESP8266_OK && retry <= 3)
+					{
+						retry++;
+					}
+					else
+					{
+						retry = 0;
+						state = 1;
+						osDelay(3000/portTICK_PERIOD_MS);
+					}
+				}
+				break;
+
+				// Connection status ESP8266
+				case 1:
+				{
+					status = ESP8266_StatusNetwork();
+
+					if (status != ESP8266_OK)
+					{
+						state = 0;
+					}
+					else
+					{
+						state = 2;
+					}
+
+					retry = 0;
+				}
+				break;
+
+				// Connect ESP to server
+				case 2:
+				{
+					status = ESP8266_EstablichConnection(&service);
+					retry++;
+
+					if (status != ESP8266_OK && retry < 3)
+					{
+						state = 2;
+					}
+					else if (status != ESP8266_OK && retry >= 3)
+					{
+						state = 5;
+					}
+					else
+					{
+						// Se debe pasar al siguiente estado
+						state = 3;
+						osDelay(1000/portTICK_PERIOD_MS);
+					}
+				}
+				break;
+
+				case 3:
+				{
+					status = ESP8266_Close();
+
+					state = 5;
+				}
+
+				default:
+					state = 5;
+			}
+		}
+		osDelay(1000/portTICK_PERIOD_MS);
 	}
 
 	// If task exit of while so destroy task. This is for caution
@@ -191,6 +263,17 @@ static void ModuleWifi(void *argument)
 
 int8_t TaskWifi_Started(void)
 {
+	strncpy((char *)host, "\0", 30);
+	strncpy((char *)protocol, "\0", 10);
+
+	strncpy((char *)host, HOST, 30);
+	strncpy((char *)protocol, "TCP", 30);
+	port = 1883;
+
+	service.host = host;
+	service.protocol = protocol;
+	service.port = port;
+
 	if (Wifi_SignalSync_Init() == 0)
 	{
 		return -1;
