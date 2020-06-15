@@ -10,6 +10,9 @@
 
 #include "stm32f7xx_hal.h"
 
+#define TIME_MS_CMD		500
+
+
 int8_t TaskWifi_Started(void);
 
 /**

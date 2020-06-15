@@ -67,7 +67,6 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
-void ModuleWifi(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -129,24 +128,6 @@ void StartDefaultTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
-}
-
-/* USER CODE BEGIN Header_ModuleWifi */
-/**
-* @brief Function implementing the TaskWifi thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_ModuleWifi */
-void ModuleWifi(void *argument)
-{
-  /* USER CODE BEGIN ModuleWifi */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END ModuleWifi */
 }
 
 /* Private application code --------------------------------------------------*/

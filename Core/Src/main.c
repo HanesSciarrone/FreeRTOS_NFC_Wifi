@@ -91,11 +91,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
   WIFI_UART_Init();		// Initialization WIFI peripheral of Cortex-M7
   NFC_SPI_Init();		// Initialization NFC peripheral of Cortex-M7
+
+  /* Delay of 10 second blocking for module ESP8266 */
+  HAL_Delay(10000);
   /* USER CODE END 2 */
 
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init(); 
+  MX_FREERTOS_Init();
 
   if (TaskNFC_Started() < 0)
   {

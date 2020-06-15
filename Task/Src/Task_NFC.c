@@ -14,8 +14,6 @@
 
 /* [BEGIN] Private typedef ------------ */
 typedef StaticTask_t osStaticThreadDef_t;
-typedef StaticQueue_t osStaticMessageQDef_t;
-typedef StaticSemaphore_t osStaticMutexDef_t;
 typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* [END] Private typedef -------------- */
 
@@ -31,6 +29,15 @@ const osThreadAttr_t TaskNFC_attributes = {
   .cb_mem = &TaskNFC_ControlBlock,
   .cb_size = sizeof(TaskNFC_ControlBlock),
   .priority = (osPriority_t) osPriorityNormal,
+};
+
+/* Definitions for wifi_Sem_Operation */
+osSemaphoreId_t NFC_Sem_Started_Handle;
+osStaticSemaphoreDef_t NFC_Started_ControlBlock;
+const osSemaphoreAttr_t NFC_Sem_Started_attributes = {
+  .name = "NFC_Sem_Started",
+  .cb_mem = &NFC_Started_ControlBlock,
+  .cb_size = sizeof(NFC_Started_ControlBlock),
 };
 
 /* Variable that link SPI function to NFC drivers */
@@ -112,19 +119,35 @@ static uint8_t NFC_CommInterface_Init(void)
 	return NFC_CommInit(&commInterface_NFC);
 }
 
+static uint8_t NFC_SignalSync_Init(void)
+{
+	if ((NFC_Sem_Started_Handle = osSemaphoreNew(1, 0, &NFC_Sem_Started_attributes)) == NULL)
+	{
+		return 0;
+	}
+
+	return 1;
+}
+
 static void CardNFC(void *argument)
 {
 	uint8_t uid[7] = {0, 0, 0, 0, 0, 0, 0}, length_uid;
 
+	osSemaphoreAcquire(NFC_Sem_Started_Handle, portMAX_DELAY);
+
 	if (NFC_CommInterface_Init() == 0)
 	{
+		osSemaphoreDelete(NFC_Sem_Started_Handle);
 		osThreadTerminate(TaskNFCHandle);
 	}
 
 	if (NFC_Module_Init() == 0)
 	{
+		osSemaphoreDelete(NFC_Sem_Started_Handle);
 		osThreadTerminate(TaskNFCHandle);
 	}
+
+	osSemaphoreDelete(NFC_Sem_Started_Handle);
 
 	/* Infinite loop */
 	for(;;)
@@ -145,6 +168,11 @@ static void CardNFC(void *argument)
 
 int8_t TaskNFC_Started(void)
 {
+	if (!NFC_SignalSync_Init())
+	{
+		return -1;
+	}
+
 	TaskNFCHandle = osThreadNew(CardNFC, NULL, &TaskNFC_attributes);
 
 	if (TaskNFCHandle == NULL)
@@ -153,4 +181,9 @@ int8_t TaskNFC_Started(void)
 	}
 
 	return 1;
+}
+
+void TaskNFC_SemaphoreGive(void)
+{
+	osSemaphoreRelease(NFC_Sem_Started_Handle);
 }

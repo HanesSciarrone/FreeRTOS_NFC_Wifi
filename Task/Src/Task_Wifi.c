@@ -9,8 +9,13 @@
 #include "cmsis_os.h"
 
 #include "Task_Wifi.h"
+#include "Task_NFC.h"
 #include "Wifi_UART.h"
+#include "ESP8266.h"
 
+#define SSID			"Hanes y Euge"
+#define	PASSWORD		"Murcielago35"
+#define HOST			"mqtt.eclipse.org"
 
 typedef StaticTask_t osStaticThreadDef_t;
 typedef StaticQueue_t osStaticMessageQDef_t;
@@ -60,13 +65,26 @@ const osSemaphoreAttr_t wifi_Sem_Operation_attributes = {
   .cb_size = sizeof(wifi_Operative_ControlBlock),
 };
 
+/* Private variable */
+uint8_t host[30], ssid[20], password[20], protocol[10];
+static ESP8266_CommInterface_s commInterface;
+static ESP8266_NetworkParameters_s network;
+static ESP8266_ServerParameters_s service;
 
 /**
-* @brief Function implementing the TaskWifi thread.
-* @param argument: Argument to pass a task.
-* @retval None
-*/
-static void ModuleWifi(void *argument);
+ * @brief Initialize module ESP8266 before start to work
+ *
+ * @retval Return 1 was success or 0 in other way.
+ */
+static uint8_t WifiModule_Init(void);
+
+/**
+ * @brief Function to initialize communication interface of
+ * library ESP8266
+ *
+ * @retval Return 1 if was successor 0 in  oher way.
+ */
+static uint8_t WifiModule_Comm_Init(void);
 
 /**
  * @brief Function to initialize Queue, Semaphore and Mutex.
@@ -75,30 +93,47 @@ static void ModuleWifi(void *argument);
  */
 static uint8_t TaskWifi_SignalSync_Init(void);
 
+/**
+* @brief Function implementing the TaskWifi thread.
+* @param argument: Argument to pass a task.
+* @retval None
+*/
+static void ModuleWifi(void *argument);
 
 
-static void ModuleWifi(void *argument)
+static uint8_t WifiModule_Init(void)
 {
-	osStatus_t result = osErrorTimeout;
-	uint8_t message[10], index;
-
-	/* Infinite loop */
-	for(;;)
+	// Configure module for avoid echo
+	if ( ESP8266_SetEcho(0) != ESP8266_OK)
 	{
-		osSemaphoreAcquire(wifi_Sem_OperationHandle, portMAX_DELAY);
-
-		strncpy((char *)message, "\0", 10);
-		index = 0;
-		do
-		{
-			result = osMessageQueueGet(wifi_QueueHandle, &message[index], 0, 0);
-			index++;
-		} while (result == osOK);
-		osDelay(1);
+		return 0;
 	}
 
-	// If task exit of while so destroy task. This is for caution
-	osThreadTerminate(TaskWifiHandle);
+	// Configure module as Station Mode
+	if ( ESP8266_SetModeWIFI((uint8_t *)"1") != ESP8266_OK)
+	{
+		return 0;
+	}
+
+	// Configure module as Station Mode
+	if ( ESP8266_SetMultipleConnection((uint8_t *)"0") != ESP8266_OK)
+	{
+		return 0;
+	}
+
+	return 1;
+}
+
+static uint8_t WifiModule_Comm_Init(void)
+{
+	ESP8266_StatusTypeDef_t status;
+
+	commInterface.send = &WIFI_UART_Send;
+	commInterface.recv = &WIFI_UART_Receive;
+
+	status = ESP8266_CommInterface_Init(&commInterface);
+
+	return (status == ESP8266_OK) ? 1 : 0;
 }
 
 static uint8_t TaskWifi_SignalSync_Init(void)
@@ -124,8 +159,72 @@ static uint8_t TaskWifi_SignalSync_Init(void)
 	return 1;
 }
 
+static void ModuleWifi(void *argument)
+{
+	osStatus_t result = osErrorTimeout;
+	ESP8266_StatusTypeDef_t status;
+	uint8_t message[10], index, state = 0;
+
+	/* Initialization of library ESP8266 */
+	if (!WifiModule_Comm_Init())
+	{
+		osThreadTerminate(TaskWifiHandle);
+	}
+
+	/* Initialization of module ESP8266 */
+	if (!WifiModule_Init())
+	{
+		osThreadTerminate(TaskWifiHandle);
+	}
+
+	status = ESP8266_DisconnectAllNetwork();
+
+	TaskNFC_SemaphoreGive();
+
+	/* Infinite loop */
+	for(;;)
+	{
+		osSemaphoreAcquire(wifi_Sem_OperationHandle, portMAX_DELAY);
+
+		strncpy((char *)message, "\0", 10);
+		index = 0;
+		do
+		{
+			result = osMessageQueueGet(wifi_QueueHandle, &message[index], 0, 0);
+			index++;
+		} while (result == osOK);
+
+		osDelay(1);
+	}
+
+	// If task exit of while so destroy task. This is for caution
+	osThreadTerminate(TaskWifiHandle);
+}
+
 int8_t TaskWifi_Started(void)
 {
+	uint16_t port;
+
+	// Initialization of variable
+	strncpy((char *)host, "\0", 30);
+	strncpy((char *)protocol, "\0", 10);
+	strncpy((char *)ssid, "\0", 20);
+	strncpy((char *)password, "\0", 20);
+
+	strncpy((char *)host, HOST, strlen(HOST));
+	strncpy((char *)protocol, "TCP", strlen("TCP"));
+
+	strncpy((char *)ssid, SSID, strlen(SSID));
+	strncpy((char *)password, PASSWORD, strlen(PASSWORD));
+	port = 1883;
+
+	network.ssid = ssid;
+	network.password = password;
+
+	service.host = host;
+	service.protocol = protocol;
+	service.port = port;
+
 	if (!TaskWifi_SignalSync_Init())
 	{
 		return -1;
