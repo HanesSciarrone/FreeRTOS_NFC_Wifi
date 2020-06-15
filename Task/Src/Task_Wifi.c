@@ -163,7 +163,7 @@ static void ModuleWifi(void *argument)
 {
 	osStatus_t result = osErrorTimeout;
 	ESP8266_StatusTypeDef_t status;
-	uint8_t message[10], index, state = 0;
+	uint8_t message[10], index, state = 0, retry;
 
 	/* Initialization of library ESP8266 */
 	if (!WifiModule_Comm_Init())
@@ -193,6 +193,56 @@ static void ModuleWifi(void *argument)
 			result = osMessageQueueGet(wifi_QueueHandle, &message[index], 0, 0);
 			index++;
 		} while (result == osOK);
+
+		retry = 0;
+		state = 0;
+		while (state != 5)
+		{
+			switch (state)
+			{
+				case 0:
+				{
+					status = ESP8266_StatusNetwork();
+
+					if (status != ESP8266_OK)
+					{
+						state = 1;
+					}
+					else
+					{
+						state = 2;
+					}
+				}
+				break;
+
+				case 1:
+				{
+					status = ESP8266_ConnectionNetwork(&network);
+
+
+					if (status != ESP8266_OK && retry >= 3)
+					{
+						state = 5;
+						retry = 0;
+					}
+					else if (status != ESP8266_OK && retry < 3)
+					{
+						state = 1;
+						retry++;
+					}
+					else
+					{
+						state = 5;
+						retry = 0;
+						osDelay(TIME_MS_CMD/portTICK_PERIOD_MS);
+					}
+				}
+				break;
+
+				default:
+					state = 5;
+			}
+		}
 
 		osDelay(1);
 	}
