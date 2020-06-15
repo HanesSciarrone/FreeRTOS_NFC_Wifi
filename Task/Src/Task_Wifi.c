@@ -200,6 +200,7 @@ static void ModuleWifi(void *argument)
 		{
 			switch (state)
 			{
+				// Ask for status of connection
 				case 0:
 				{
 					status = ESP8266_StatusNetwork();
@@ -212,30 +213,45 @@ static void ModuleWifi(void *argument)
 					{
 						state = 2;
 					}
+					osDelay(TIME_MS_ESTABLISH_SERVER/portTICK_PERIOD_MS);
 				}
 				break;
 
+				// Connect to Wifi
 				case 1:
 				{
 					status = ESP8266_ConnectionNetwork(&network);
 
 
-					if (status != ESP8266_OK && retry >= 3)
+					if (status == ESP8266_OK)
 					{
-						state = 5;
-						retry = 0;
+						state = 0;
+						osDelay(TIME_MS_ESTABLISH_SERVER/portTICK_PERIOD_MS);
 					}
-					else if (status != ESP8266_OK && retry < 3)
+				}
+				break;
+
+				// Connecto to server
+				case 2:
+				{
+					status = ESP8266_ConnectionServer(&service);
+
+					if (status != ESP8266_OK)
 					{
-						state = 1;
-						retry++;
+						state = 0;
 					}
 					else
 					{
-						state = 5;
-						retry = 0;
-						osDelay(TIME_MS_CMD/portTICK_PERIOD_MS);
+						state = 3;
 					}
+				}
+
+				// Close connection of server
+				case 3:
+				{
+					status = ESP8266_ConnectionClose();
+
+					state = 5;
 				}
 				break;
 

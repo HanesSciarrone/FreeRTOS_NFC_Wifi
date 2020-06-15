@@ -57,7 +57,5 @@ ESP8266_StatusTypeDef_t ESP8266_ConnectionServer(const ESP8266_ServerParameters_
 ESP8266_StatusTypeDef_t ESP8266_SentData(uint8_t *buffer, uint32_t length);
 ESP8266_StatusTypeDef_t ESP8266_ReceiveData(uint8_t *buffer, uint32_t *length);
 ESP8266_StatusTypeDef_t ESP8266_ConnectionClose(void);
-
-ESP8266_StatusTypeDef_t ESP8266_Close(void);
 //ESP8266_StatusTypeDef_t GenerateRequest(void *data);
 #endif /* INC_ESP8266_H_ */

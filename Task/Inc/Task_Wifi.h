@@ -10,8 +10,8 @@
 
 #include "stm32f7xx_hal.h"
 
-#define TIME_MS_CMD		2000
-
+#define TIME_MS_CONNECTION			2000
+#define TIME_MS_ESTABLISH_SERVER	3000
 
 int8_t TaskWifi_Started(void);
 
