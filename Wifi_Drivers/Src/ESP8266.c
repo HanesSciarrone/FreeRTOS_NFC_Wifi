@@ -15,8 +15,6 @@
 #include "cmsis_os.h"
 #endif
 
-#define MAX_BUFFER_SIZE		1500
-
 #define AT_OK				"OK\r\n"
 #define AT_SEND_LENGTH_OK	"OK\r\n>"
 #define AT_SEND_OK			"SEND OK\r\n"
@@ -396,6 +394,12 @@ ESP8266_StatusTypeDef_t ESP8266_ConnectionClose(void)
 	strncpy((char *)bufferCmd, "AT+CIPCLOSE\r\n", 13);
 
 	return ESP8266_SendCommand(13, (const uint8_t *)AT_OK);
+}
+
+void ESP8266_GetModuleResponse(uint8_t *buffer, uint32_t length)
+{
+	strncpy((char *)buffer, "\0", length);
+	strncpy((char *)buffer, (char *)bufferRx, strlen((char *)bufferRx));
 }
 
 //ESP8266_StatusTypeDef_t GenerateRequest(void *data)

@@ -10,8 +10,11 @@
 
 #define WIFI_RTOS
 
-//  Time of wait to start read response of command send.
+///  Time of wait to start read response of command send.
 #define TIME_MS_MSG_RESPONSE	250
+
+/// Maximum size of buffer to store response of module
+#define MAX_BUFFER_SIZE		1500
 
 typedef enum {
 	  ESP8266_OK                            = 0,
@@ -57,5 +60,7 @@ ESP8266_StatusTypeDef_t ESP8266_ConnectionServer(const ESP8266_ServerParameters_
 ESP8266_StatusTypeDef_t ESP8266_SentData(uint8_t *buffer, uint32_t length);
 ESP8266_StatusTypeDef_t ESP8266_ReceiveData(uint8_t *buffer, uint32_t *length);
 ESP8266_StatusTypeDef_t ESP8266_ConnectionClose(void);
+void ESP8266_GetModuleResponse(uint8_t *buffer, uint32_t length);
+
 //ESP8266_StatusTypeDef_t GenerateRequest(void *data);
 #endif /* INC_ESP8266_H_ */

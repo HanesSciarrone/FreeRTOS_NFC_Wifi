@@ -18,6 +18,8 @@
 #define	PASSWORD		"Murcielago35"
 #define HOST			"mqtt.eclipse.org"
 
+#define KEEPALIVE_CONNECTION	60UL
+
 typedef StaticTask_t osStaticThreadDef_t;
 typedef StaticQueue_t osStaticMessageQDef_t;
 typedef StaticSemaphore_t osStaticMutexDef_t;
@@ -67,7 +69,8 @@ const osSemaphoreAttr_t wifi_Sem_Operation_attributes = {
 };
 
 /* Private variable */
-uint8_t host[30], ssid[20], password[20], protocol[10];
+static uint8_t host[30], ssid[20], password[20], protocol[10];
+static uint8_t moduleResponse[MAX_BUFFER_SIZE];
 static ESP8266_CommInterface_s commInterface;
 static ESP8266_NetworkParameters_s network;
 static ESP8266_ServerParameters_s service;
@@ -164,7 +167,16 @@ static void ModuleWifi(void *argument)
 {
 	osStatus_t result = osErrorTimeout;
 	ESP8266_StatusTypeDef_t status;
+	MQTTPacket_connectData dataConnection = MQTTPacket_connectData_initializer;
+	MQTTString topicString = MQTTString_initializer;
+
+	uint32_t length = 0;
+	uint16_t subcribe_MsgID;
+	int32_t requestQoS, subcribeCount, granted_QoS;
+
 	uint8_t message[10], index, state = 0, retry;
+	uint8_t sessionPresent, connack_rc, buffer[200];
+
 
 	/* Initialization of library ESP8266 */
 	if (!WifiModule_Comm_Init())
@@ -196,7 +208,6 @@ static void ModuleWifi(void *argument)
 		} while (result == osOK);
 
 		retry = 0;
-		state = 0;
 		while (state != 9)
 		{
 			switch (state)
@@ -250,21 +261,134 @@ static void ModuleWifi(void *argument)
 				//Send Connect MQTT
 				case 3:
 				{
+					retry = 0;
+					while (retry < 3)
+					{
+						dataConnection.MQTTVersion = 3;
+						dataConnection.clientID.cstring = "Hanes";
+						dataConnection.keepAliveInterval = KEEPALIVE_CONNECTION;
+						dataConnection.will.qos = 0;
 
+						strncpy((char *)buffer, "\0", sizeof(buffer));
+						length = MQTTSerialize_connect(buffer, sizeof(buffer), &dataConnection);
+						status = ESP8266_SentData(buffer, length);
+
+						if (status != ESP8266_OK)
+						{
+							ESP8266_GetModuleResponse(moduleResponse, MAX_BUFFER_SIZE);
+
+							if (strstr((char *)moduleResponse, "CLOSED\r\n") != NULL)
+							{
+								retry = 3;
+								state = 2;
+							}
+							else
+							{
+								retry++;
+								state = 8;
+							}
+						}
+						else
+						{
+							strncpy((char *)buffer, "\0", sizeof(buffer));
+							length = 0;
+							status = ESP8266_ReceiveData(buffer, &length);
+
+							if (status != ESP8266_OK)
+							{
+								state = 8;
+							}
+							else
+							{
+								if ( MQTTDeserialize_connack(&sessionPresent, &connack_rc, buffer, strlen((char *)buffer)) != 1 )
+								{
+									state = 8;
+								}
+								else
+								{
+									state = 4;
+									break;
+								}
+							}
+
+							retry++;
+						}
+					}
 				}
 				break;
 
 				// Send Subscribe MQTT
 				case 4:
 				{
+					retry = 0;
+					while (retry < 3)
+					{
+						MQTTString topicSubcribeString = MQTTString_initializer;
+						topicSubcribeString.cstring = "SUB_RTOS1";
+						requestQoS = 0;
 
+						length = MQTTSerialize_subscribe(buffer, sizeof(buffer), 0, 1, 1, &topicSubcribeString, (int *)&requestQoS);
+						status = ESP8266_SentData(buffer, length);
+
+						if( status != ESP8266_OK )
+						{
+							ESP8266_GetModuleResponse(moduleResponse, MAX_BUFFER_SIZE);
+							if( strstr((char *)moduleResponse, "CLOSED\r\n") != NULL )
+							{
+								retry = 3;
+								state = 2;
+							}
+							else
+							{
+								state = 8;
+								retry++;
+							}
+						}
+						else
+						{
+							strncpy((char *)buffer, "\0", sizeof(buffer));
+							length = 0;
+							status =  ESP8266_ReceiveData(buffer, &length);
+
+							if (status != ESP8266_OK)
+							{
+								state = 8;
+							}
+							else
+							{
+								if ( MQTTDeserialize_suback(&subcribe_MsgID, 1, (int *)&subcribeCount, (int *)&granted_QoS, buffer, strlen((char *)buffer)) != 1 )
+								{
+									state = 8;
+								}
+								else
+								{
+									state = 5;
+									break;
+								}
+							}
+
+							retry++;
+						}
+					}
 				}
 				break;
 
 				// Send message
 				case 5:
 				{
+					topicString.cstring = "PUB_RTOS1";
+					length = MQTTSerialize_publish(buffer, sizeof(buffer), 0, 0, 0, 0, topicString, (unsigned char*)&message, strlen((char *)message));
+					status = ESP8266_SentData(buffer, length);
 
+					if( status != ESP8266_OK )
+					{
+						state = 8;
+						break;
+					}
+					else
+					{
+						state = 7;
+					}
 				}
 				break;
 
@@ -278,7 +402,11 @@ static void ModuleWifi(void *argument)
 				// Send unsubscribe MQTT
 				case 7:
 				{
+					strncpy((char *)buffer, "\0", sizeof(buffer));
+					length = MQTTSerialize_disconnect(buffer, sizeof(buffer));
+					status = ESP8266_SentData(buffer, length);
 
+					state = 8;
 				}
 				break;
 
@@ -287,12 +415,12 @@ static void ModuleWifi(void *argument)
 				{
 					status = ESP8266_ConnectionClose();
 
-					state = 9;
+					state = 10;
 				}
 				break;
 
 				default:
-					state = 9;
+					state = 0;
 			}
 		}
 
