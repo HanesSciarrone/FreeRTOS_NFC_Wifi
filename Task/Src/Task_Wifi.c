@@ -12,6 +12,7 @@
 #include "Task_NFC.h"
 #include "Wifi_UART.h"
 #include "ESP8266.h"
+#include "MQTTPacket.h"
 
 #define SSID			"Hanes y Euge"
 #define	PASSWORD		"Murcielago35"
@@ -196,7 +197,7 @@ static void ModuleWifi(void *argument)
 
 		retry = 0;
 		state = 0;
-		while (state != 5)
+		while (state != 9)
 		{
 			switch (state)
 			{
@@ -246,17 +247,52 @@ static void ModuleWifi(void *argument)
 					}
 				}
 
-				// Close connection of server
+				//Send Connect MQTT
 				case 3:
+				{
+
+				}
+				break;
+
+				// Send Subscribe MQTT
+				case 4:
+				{
+
+				}
+				break;
+
+				// Send message
+				case 5:
+				{
+
+				}
+				break;
+
+				// Receive Command
+				case 6:
+				{
+
+				}
+				break;
+
+				// Send unsubscribe MQTT
+				case 7:
+				{
+
+				}
+				break;
+
+				// Close connection of server
+				case 8:
 				{
 					status = ESP8266_ConnectionClose();
 
-					state = 5;
+					state = 9;
 				}
 				break;
 
 				default:
-					state = 5;
+					state = 9;
 			}
 		}
 
