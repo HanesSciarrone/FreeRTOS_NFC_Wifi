@@ -14,7 +14,7 @@
 #define WIFI_UART_RTOS
 
 /// Define time wait
-#define DEFAULT_TIME_OUT	1500
+#define DEFAULT_TIME_OUT	3000
 
 #define Wifi_Tx_Pin GPIO_PIN_12
 #define Wifi_Tx_GPIO_Port GPIOC
@@ -27,7 +27,7 @@
  *
  * \return Return 1 if initialization was success or 0 in other way.
  */
-uint8_t Wifi_UART_Init(void);
+uint8_t WIFI_UART_Init(void);
 
 
 /**
@@ -39,7 +39,7 @@ uint8_t Wifi_UART_Init(void);
   * @param Length: the data length.
   * @retval 0 on success, -1 otherwise.
   */
-int8_t Wifi_UART_Send(uint8_t* data, uint32_t length);
+int8_t WIFI_UART_Send(uint8_t* data, uint32_t length);
 
 
 /**
@@ -51,6 +51,6 @@ int8_t Wifi_UART_Send(uint8_t* data, uint32_t length);
   * @param[in]  length the Maximum size of the data to receive.
   * \return The actual data size that has been received.
   */
-int32_t Wifi_UART_Receive(uint8_t* buffer, uint32_t length);
+int32_t WIFI_UART_Receive(uint8_t* buffer, uint32_t length);
 
 #endif /* INC_WIFI_UART_H_ */

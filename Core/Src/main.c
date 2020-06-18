@@ -25,6 +25,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Task_NFC.h"
+#include "Task_Wifi.h"
 #include "NFC_SPI.h"
 #include "Wifi_UART.h"
 /* USER CODE END Includes */
@@ -68,7 +69,6 @@ void MX_FREERTOS_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int8_t status;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -88,20 +88,26 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-
   /* USER CODE BEGIN 2 */
-  Wifi_UART_Init();		// Initialization WIFI peripheral of Cortex-M7
+  WIFI_UART_Init();		// Initialization WIFI peripheral of Cortex-M7
   NFC_SPI_Init();		// Initialization NFC peripheral of Cortex-M7
+
+  /* Delay of 10 second blocking for module ESP8266 */
+  HAL_Delay(10000);
   /* USER CODE END 2 */
 
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
-  MX_FREERTOS_Init(); 	 /* Init task idle */
-  status = TaskNCF_Started();	 /* Init task of NFC */
+  MX_FREERTOS_Init();
 
-  if ( status == -1 )
+  if (TaskNFC_Started() < 0)
   {
-	  return 1;// Code to error at create task, semaphore, queue or mutex
+	  return 0;
+  }
+
+  if (TaskWifi_Started() < 0)
+  {
+	  return 0;
   }
   /* Start scheduler */
   osKernelStart();

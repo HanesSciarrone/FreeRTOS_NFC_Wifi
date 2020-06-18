@@ -11,10 +11,17 @@
 #include "stm32f7xx_hal.h"
 
 /**
- * \brief Function to create task of NFC.
+ * @brief Function to create task of NFC.
  *
- * \return Return 1 is operation was success or -1 in other case
+ * @retval Return 1 is operation was success or -1 in other case
  */
-int8_t TaskNCF_Started(void);
+int8_t TaskNFC_Started(void);
+
+
+/**
+ * @brief Give semaphore to start of task NFC. This function can execute one time,
+ * then semaphore is deleted.
+ */
+void TaskNFC_SemaphoreGive(void);
 
 #endif /* INC_TASK_NFC_H_ */

@@ -31,7 +31,7 @@ static uint8_t NFC_SendCommandCheckAck(uint8_t *cmd, const uint16_t cmd_length, 
 static void NFC_Delay(const uint32_t time)
 {
 	#ifdef NFC_RTOS
-		osDelay(time);
+		osDelay(time/portTICK_PERIOD_MS);
 	#else
 		uint32_t startTick = HAL_GetTick();
 		while(HAL_GetTick() - startTick < time);
@@ -116,7 +116,7 @@ static uint8_t NFC_WaitReady(const uint16_t timeout)
 			{
 				return true;
 			}
-			osDelay(1);
+			NFC_Delay(1);
 			currentTime++;
 		} while(currentTime < timeout);
 	#else

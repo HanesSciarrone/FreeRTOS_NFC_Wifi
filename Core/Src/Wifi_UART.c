@@ -38,7 +38,7 @@ typedef struct
 static RxBuffer_t bufferWifi;
 UART_HandleTypeDef uartWifi;
 
-uint8_t Wifi_UART_Init(void)
+uint8_t WIFI_UART_Init(void)
 {
 	uartWifi.Instance = UART5;
 	uartWifi.Init.BaudRate = 115200;
@@ -108,7 +108,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 		HAL_GPIO_Init(Wifi_Rx_GPIO_Port, &GPIO_InitStruct);
 
 		/* UART5 interrupt Init */
-		HAL_NVIC_SetPriority(UART5_IRQn, 1, 0);
+		HAL_NVIC_SetPriority(UART5_IRQn, 5, 0);
 		HAL_NVIC_EnableIRQ(UART5_IRQn);
 	}
 }
@@ -133,17 +133,23 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 	}
 }
 
-int8_t Wifi_UART_Send(uint8_t* data, uint32_t length)
+int8_t WIFI_UART_Send(uint8_t* data, uint32_t length)
 {
+#ifdef WIFI_UART_RTOS
+	if (HAL_UART_Transmit_IT(&uartWifi, (uint8_t*)data, length) != HAL_OK)
+	{
+		return -1;
+	}
+#else
 	if (HAL_UART_Transmit(&uartWifi, (uint8_t*)data, length, DEFAULT_TIME_OUT) != HAL_OK)
 	{
 		return -1;
 	}
-
+#endif
 	return 0;
 }
 
-int32_t UART_Receive(uint8_t* buffer, uint32_t length)
+int32_t WIFI_UART_Receive(uint8_t* buffer, uint32_t length)
 {
 	uint32_t readData = 0;
 
@@ -212,22 +218,16 @@ int32_t UART_Receive(uint8_t* buffer, uint32_t length)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle)
 {
-	taskENTER_CRITICAL();
-
-	/* Internally this function call xSemaphoreGiveFromISR if
-	 * function is calling inside of interruption.
-	 */
-	osSemaphoreRelease(wifi_Sem_ReceptionDataHandle);
-
 	/* If ring buffer end is reached reset tail pointer to start of buffer */
 	if(++bufferWifi.index >= UART_BUFFER_SIZE)
 	{
 		bufferWifi.index = 0;
 	}
 
-	taskEXIT_CRITICAL();
-
 	HAL_UART_Receive_IT(uartHandle, (uint8_t *)&bufferWifi.data[bufferWifi.index], 1);
 
-	osThreadYield();
+	/* Internally this function call xSemaphoreGiveFromISR if
+	 * function is calling inside of interruption.
+	 */
+	osSemaphoreRelease(wifi_Sem_ReceptionDataHandle);
 }
