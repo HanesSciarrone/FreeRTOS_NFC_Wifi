@@ -27,7 +27,7 @@ typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 
 /* Definitions for TaskWifi */
 osThreadId_t TaskWifiHandle;
-uint32_t TaskWifi_Buffer[ 512 ];
+uint32_t TaskWifi_Buffer[ 1024 ];
 osStaticThreadDef_t TaskWifi_ControlBlock;
 const osThreadAttr_t TaskWifi_attributes = {
   .name = "TaskWifi",
@@ -387,7 +387,7 @@ static void ModuleWifi(void *argument)
 					}
 					else
 					{
-						state = 7;
+						state = 6;
 					}
 				}
 				break;
@@ -395,7 +395,30 @@ static void ModuleWifi(void *argument)
 				// Receive Command
 				case 6:
 				{
+					strncpy((char *)buffer, "\0", sizeof(buffer));
+					length = 0;
+					status =  ESP8266_ReceiveData(buffer, &length);
 
+					if (status != ESP8266_OK)
+					{
+						state = 7;
+					}
+					else
+					{
+						if( strlen((char *)buffer) != 0 )
+						{
+							uint8_t granted_Dup, granted_Retained, *granted_Payload, datos[100];
+							int32_t granted_QoS, granted_PayloadLen;
+							uint16_t granted_PacketID;
+							MQTTString granted_TopicString;
+
+							MQTTDeserialize_publish(&granted_Dup, (int *)&granted_QoS, &granted_Retained, &granted_PacketID, &granted_TopicString, (unsigned char **)&granted_Payload, (int *)&granted_PayloadLen, (unsigned char *)buffer, (int)granted_PayloadLen);
+
+							strncpy((char *)datos, "\0", sizeof(datos));
+							strncpy((char *)datos, (char *)granted_Payload, granted_PayloadLen);
+							state = 7;
+						}
+					}
 				}
 				break;
 
@@ -415,7 +438,7 @@ static void ModuleWifi(void *argument)
 				{
 					status = ESP8266_ConnectionClose();
 
-					state = 10;
+					state = 9;
 				}
 				break;
 
