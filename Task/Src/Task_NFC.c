@@ -8,6 +8,7 @@
 
 #include "Task_NFC.h"
 #include "Task_Wifi.h"
+#include "Task_Display.h"
 #include "cmsis_os.h"
 #include "NFC_SPI.h"
 #include "NFC.h"
@@ -131,18 +132,25 @@ static uint8_t NFC_SignalSync_Init(void)
 
 static void CardNFC(void *argument)
 {
+	Display_TypeMsg_t msgDisplay;
 	uint8_t uid[7] = {0, 0, 0, 0, 0, 0, 0}, length_uid;
 
 	osSemaphoreAcquire(NFC_Sem_Started_Handle, portMAX_DELAY);
 
 	if (NFC_CommInterface_Init() == 0)
 	{
+		msgDisplay = MESSAGE_ERROR_NFC;
+		Display_MsgShow(msgDisplay);
+		osDelay(20/portTICK_PERIOD_MS);
 		osSemaphoreDelete(NFC_Sem_Started_Handle);
 		osThreadTerminate(TaskNFCHandle);
 	}
 
 	if (NFC_Module_Init() == 0)
 	{
+		msgDisplay = MESSAGE_ERROR_NFC;
+		Display_MsgShow(msgDisplay);
+		osDelay(20/portTICK_PERIOD_MS);
 		osSemaphoreDelete(NFC_Sem_Started_Handle);
 		osThreadTerminate(TaskNFCHandle);
 	}
@@ -159,10 +167,11 @@ static void CardNFC(void *argument)
 			osDelay(1000/portTICK_PERIOD_MS);
 		}
 
-		osDelay(1/portTICK_PERIOD_MS);
+		osDelay(20/portTICK_PERIOD_MS);
 	}
 
 	// If task exit of while so destroy task. This is for caution
+	osSemaphoreDelete(NFC_Sem_Started_Handle);
 	osThreadTerminate(TaskNFCHandle);
 }
 

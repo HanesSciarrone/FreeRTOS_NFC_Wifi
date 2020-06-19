@@ -56,7 +56,7 @@ void DebugMon_Handler(void);
 void TIM1_UP_TIM10_IRQHandler(void);
 void UART5_IRQHandler(void);
 /* USER CODE BEGIN EFP */
-
+void LTDC_IRQHandler(void);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus
