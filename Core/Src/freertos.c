@@ -30,6 +30,7 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -62,6 +63,7 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
+
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
@@ -74,6 +76,7 @@ void MX_FREERTOS_Init(void) {
        
   /* USER CODE END Init */
   /* Create the mutex(es) */
+
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -90,6 +93,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
+  /* creation of wifi_Queue */
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -122,7 +126,6 @@ void StartDefaultTask(void *argument)
   }
   /* USER CODE END StartDefaultTask */
 }
-
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */

@@ -21,12 +21,14 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Task_NFC.h"
 #include "Task_Wifi.h"
 #include "Task_Display.h"
+#include "Task_Switch.h"
 #include "NFC_SPI.h"
 #include "Wifi_UART.h"
 /* USER CODE END Includes */
@@ -91,6 +93,7 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
   WIFI_UART_Init();		// Initialization WIFI peripheral of Cortex-M7
   NFC_SPI_Init();		// Initialization NFC peripheral of Cortex-M7
@@ -104,20 +107,42 @@ int main(void)
 
   if (TaskDisplay_Started() < 0)
   {
-	  return 0;
+	  while(1)
+	  {
+		  HAL_GPIO_TogglePin(GPIOJ, GPIO_PIN_13);
+		  HAL_Delay(1000);
+	  }
   }
 
   Display_MessageStart();
 
+  if (TaskSwitch_Started() < 0)
+  {
+	  while(1)
+	  {
+		  HAL_GPIO_TogglePin(GPIOJ, GPIO_PIN_13);
+		  HAL_Delay(1000);
+	  }
+  }
+
   if (TaskNFC_Started() < 0)
   {
-	  return 0;
+	  while(1)
+	  {
+		  HAL_GPIO_TogglePin(GPIOJ, GPIO_PIN_13);
+		  HAL_Delay(1000);
+	  }
   }
 
   if (TaskWifi_Started() < 0)
   {
-	  return 0;
+	  while(1)
+	  {
+		  HAL_GPIO_TogglePin(GPIOJ, GPIO_PIN_13);
+		  HAL_Delay(1000);
+	  }
   }
+
   /* Start scheduler */
   osKernelStart();
  
