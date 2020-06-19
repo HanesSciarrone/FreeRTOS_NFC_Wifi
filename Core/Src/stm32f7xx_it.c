@@ -44,7 +44,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+extern LTDC_HandleTypeDef hltdc_discovery;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -190,6 +190,14 @@ void UART5_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-
+/**
+  * @brief  This function handles LTDC interrupt request.
+  * @param  None
+  * @retval None
+  */
+void LTDC_IRQHandler(void)
+{
+  HAL_LTDC_IRQHandler(&hltdc_discovery);
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

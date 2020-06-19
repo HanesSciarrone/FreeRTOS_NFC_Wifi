@@ -10,13 +10,14 @@
 
 #include "Task_Wifi.h"
 #include "Task_NFC.h"
+#include "Task_Display.h"
 #include "Wifi_UART.h"
 #include "ESP8266.h"
 #include "MQTTPacket.h"
 
 #define SSID			"Hanes y Euge"
 #define	PASSWORD		"Murcielago35"
-#define HOST			"mqtt.eclipse.org"
+#define HOST			"broker.hivemq.com"
 
 #define KEEPALIVE_CONNECTION	60UL
 
@@ -75,6 +76,23 @@ static ESP8266_CommInterface_s commInterface;
 static ESP8266_NetworkParameters_s network;
 static ESP8266_ServerParameters_s service;
 
+
+/**
+ * @brief Convert character to hexadecimal with letter uppercase.
+ *
+ * @param[in] value Value on decimal to convert hexadecimal
+ */
+static uint8_t ModuleWifi_ConvertHex(uint8_t value);
+
+/**
+ * @brief Convert string to hexadecimal.
+ *
+ * @param[in] msg String that you will convert to hexadecimal.
+ * @param[in] hexa String out with character on hexadecimal.
+ * @param[in] size Length of string msg.
+ */
+static void WifiModule_IntToHex(uint8_t *msg, uint8_t *hexa, uint32_t size);
+
 /**
  * @brief Initialize module ESP8266 before start to work
  *
@@ -104,6 +122,125 @@ static uint8_t TaskWifi_SignalSync_Init(void);
 */
 static void ModuleWifi(void *argument);
 
+static uint8_t ModuleWifi_ConvertHex(uint8_t value)
+{
+	uint8_t returnValue = '0';
+	switch(value)
+	{
+		case 0:
+		{
+			returnValue = '0';
+		}
+		break;
+
+		case 1:
+		{
+			returnValue = '1';
+		}
+		break;
+
+		case 2:
+		{
+			returnValue = '2';
+		}
+		break;
+
+		case 3:
+		{
+			returnValue = '3';
+		}
+		break;
+
+		case 4:
+		{
+			returnValue = '4';
+		}
+		break;
+
+		case 5:
+		{
+			returnValue = '5';
+		}
+		break;
+
+		case 6:
+		{
+			returnValue = '6';
+		}
+		break;
+
+		case 7:
+		{
+			returnValue = '7';
+		}
+		break;
+
+		case 8:
+		{
+			returnValue = '8';
+		}
+		break;
+
+		case 9:
+		{
+			returnValue = '9';
+		}
+		break;
+
+		case 10:
+		{
+			returnValue = 'A';
+		}
+		break;
+
+		case 11:
+		{
+			returnValue = 'B';
+		}
+		break;
+
+		case 12:
+		{
+			returnValue = 'C';
+		}
+		break;
+
+		case 13:
+		{
+			returnValue = 'D';
+		}
+		break;
+
+		case 14:
+		{
+			returnValue = 'E';
+		}
+		break;
+
+		case 15:
+		{
+			returnValue = 'F';
+		}
+		break;
+	}
+
+	return returnValue;
+}
+
+static void WifiModule_IntToHex(uint8_t *msg, uint8_t *hexa, uint32_t size)
+{
+	uint32_t i, index = 0;
+	uint8_t temp;
+
+	for (i = 0; i < size; i++)
+	{
+		temp = *(msg+i) & 0xF0;
+		temp >>= 4;
+		*(hexa + index++) = ModuleWifi_ConvertHex(temp);
+		temp = *(msg+i) & 0x0F;
+		*(hexa + index++) = ModuleWifi_ConvertHex(temp);
+	}
+}
 
 static uint8_t WifiModule_Init(void)
 {
@@ -166,6 +303,7 @@ static uint8_t TaskWifi_SignalSync_Init(void)
 static void ModuleWifi(void *argument)
 {
 	osStatus_t result = osErrorTimeout;
+	Display_TypeMsg_t msgDisplay;
 	ESP8266_StatusTypeDef_t status;
 	MQTTPacket_connectData dataConnection = MQTTPacket_connectData_initializer;
 	MQTTString topicString = MQTTString_initializer;
@@ -173,20 +311,31 @@ static void ModuleWifi(void *argument)
 	uint32_t length = 0;
 	uint16_t subcribe_MsgID;
 	int32_t requestQoS, subcribeCount, granted_QoS;
-
-	uint8_t message[10], index, state = 0, retry;
+	uint8_t message[10], data[30], index, state = 0, retry;
 	uint8_t sessionPresent, connack_rc, buffer[200];
 
 
 	/* Initialization of library ESP8266 */
 	if (!WifiModule_Comm_Init())
 	{
+		msgDisplay = MESSAGE_ERROR_WIFI;
+		Display_MsgShow(msgDisplay);
+		osDelay(20/portTICK_PERIOD_MS);
+		osSemaphoreDelete(wifi_Sem_OperationHandle);
+		osMutexDelete(wifi_Mutex_NewMsgHandle);
+		osMessageQueueDelete(wifi_QueueHandle);
 		osThreadTerminate(TaskWifiHandle);
 	}
 
 	/* Initialization of module ESP8266 */
 	if (!WifiModule_Init())
 	{
+		msgDisplay = MESSAGE_ERROR_WIFI;
+		Display_MsgShow(msgDisplay);
+		osDelay(20/portTICK_PERIOD_MS);
+		osSemaphoreDelete(wifi_Sem_OperationHandle);
+		osMutexDelete(wifi_Mutex_NewMsgHandle);
+		osMessageQueueDelete(wifi_QueueHandle);
 		osThreadTerminate(TaskWifiHandle);
 	}
 
@@ -207,7 +356,16 @@ static void ModuleWifi(void *argument)
 			index++;
 		} while (result == osOK);
 
+		msgDisplay = MESSAGE_PROCESS_INFO;
+		Display_MsgShow(msgDisplay);
+		osDelay(20/portTICK_PERIOD_MS);
+
+		index--;
+		strncpy((char *)data, "\0", 30);
+		WifiModule_IntToHex(message, data, index);
+
 		retry = 0;
+		state = 0;
 		while (state != 9)
 		{
 			switch (state)
@@ -219,6 +377,9 @@ static void ModuleWifi(void *argument)
 
 					if (status != ESP8266_OK)
 					{
+						msgDisplay = MEESAGE_CONNECT_NETWORK;
+						Display_MsgShow(msgDisplay);
+						state = 2;
 						state = 1;
 					}
 					else
@@ -238,6 +399,8 @@ static void ModuleWifi(void *argument)
 					if (status == ESP8266_OK)
 					{
 						state = 0;
+						msgDisplay = MESSAGE_CONNECTION;
+						Display_MsgShow(msgDisplay);
 						osDelay(TIME_MS_ESTABLISH_SERVER/portTICK_PERIOD_MS);
 					}
 				}
@@ -285,7 +448,7 @@ static void ModuleWifi(void *argument)
 							else
 							{
 								retry++;
-								state = 8;
+								state = 7;
 							}
 						}
 						else
@@ -296,13 +459,13 @@ static void ModuleWifi(void *argument)
 
 							if (status != ESP8266_OK)
 							{
-								state = 8;
+								state = 7;
 							}
 							else
 							{
 								if ( MQTTDeserialize_connack(&sessionPresent, &connack_rc, buffer, strlen((char *)buffer)) != 1 )
 								{
-									state = 8;
+									state = 7;
 								}
 								else
 								{
@@ -313,6 +476,13 @@ static void ModuleWifi(void *argument)
 
 							retry++;
 						}
+					}
+
+					if (retry >= 3 && state == 7)
+					{
+						msgDisplay = MESSAGE_PROCESS_AGAIN;
+						Display_MsgShow(msgDisplay);
+						osDelay(10/portTICK_PERIOD_MS);
 					}
 				}
 				break;
@@ -340,7 +510,7 @@ static void ModuleWifi(void *argument)
 							}
 							else
 							{
-								state = 8;
+								state = 7;
 								retry++;
 							}
 						}
@@ -352,16 +522,19 @@ static void ModuleWifi(void *argument)
 
 							if (status != ESP8266_OK)
 							{
-								state = 8;
+								state = 7;
 							}
 							else
 							{
 								if ( MQTTDeserialize_suback(&subcribe_MsgID, 1, (int *)&subcribeCount, (int *)&granted_QoS, buffer, strlen((char *)buffer)) != 1 )
 								{
-									state = 8;
+									state = 7;
 								}
 								else
 								{
+									msgDisplay = MESSAGE_REQ_SERVER;
+									Display_MsgShow(msgDisplay);
+									osDelay(10/portTICK_PERIOD_MS);
 									state = 5;
 									break;
 								}
@@ -370,6 +543,13 @@ static void ModuleWifi(void *argument)
 							retry++;
 						}
 					}
+
+					if (retry >= 3 && state == 7)
+					{
+						msgDisplay = MESSAGE_PROCESS_AGAIN;
+						Display_MsgShow(msgDisplay);
+						osDelay(10/portTICK_PERIOD_MS);
+					}
 				}
 				break;
 
@@ -377,12 +557,15 @@ static void ModuleWifi(void *argument)
 				case 5:
 				{
 					topicString.cstring = "PUB_RTOS1";
-					length = MQTTSerialize_publish(buffer, sizeof(buffer), 0, 0, 0, 0, topicString, (unsigned char*)&message, strlen((char *)message));
+					length = MQTTSerialize_publish(buffer, sizeof(buffer), 0, 0, 0, 0, topicString, (unsigned char*)data, strlen((char *)data));
 					status = ESP8266_SentData(buffer, length);
 
 					if( status != ESP8266_OK )
 					{
-						state = 8;
+
+						msgDisplay = MESSAGE_PROCESS_AGAIN;
+						Display_MsgShow(msgDisplay);
+						state = 7;
 						break;
 					}
 					else
@@ -395,30 +578,38 @@ static void ModuleWifi(void *argument)
 				// Receive Command
 				case 6:
 				{
+					msgDisplay = MESSAGE_RESP_SERVER;
+					Display_MsgShow(msgDisplay);
+					osDelay(10/portTICK_PERIOD_MS);
+
 					strncpy((char *)buffer, "\0", sizeof(buffer));
 					length = 0;
 					status =  ESP8266_ReceiveData(buffer, &length);
 
 					if (status != ESP8266_OK)
 					{
-						state = 7;
+						msgDisplay = MESSAGE_PROCESS_AGAIN;
+						Display_MsgShow(msgDisplay);
 					}
 					else
 					{
 						if( strlen((char *)buffer) != 0 )
 						{
-							uint8_t granted_Dup, granted_Retained, *granted_Payload, datos[100];
+							uint8_t granted_Dup, granted_Retained, *granted_Payload;
 							int32_t granted_QoS, granted_PayloadLen;
 							uint16_t granted_PacketID;
 							MQTTString granted_TopicString;
 
 							MQTTDeserialize_publish(&granted_Dup, (int *)&granted_QoS, &granted_Retained, &granted_PacketID, &granted_TopicString, (unsigned char **)&granted_Payload, (int *)&granted_PayloadLen, (unsigned char *)buffer, (int)granted_PayloadLen);
 
-							strncpy((char *)datos, "\0", sizeof(datos));
-							strncpy((char *)datos, (char *)granted_Payload, granted_PayloadLen);
-							state = 7;
+							strncpy((char *)data, "\0", sizeof(data));
+							strncpy((char *)data, (char *)granted_Payload, granted_PayloadLen);
+							Display_MsgShowResponse(data, granted_PayloadLen);
+							osDelay(10/portTICK_PERIOD_MS);
 						}
 					}
+
+					state = 7;
 				}
 				break;
 
@@ -450,7 +641,10 @@ static void ModuleWifi(void *argument)
 		osDelay(1);
 	}
 
-	// If task exit of while so destroy task. This is for caution
+	// If task exit of while so destroy task, semaphore, mutex, and queue. This is for caution
+	osSemaphoreDelete(wifi_Sem_OperationHandle);
+	osMutexDelete(wifi_Mutex_NewMsgHandle);
+	osMessageQueueDelete(wifi_QueueHandle);
 	osThreadTerminate(TaskWifiHandle);
 }
 
